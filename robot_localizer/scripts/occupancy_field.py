@@ -19,7 +19,8 @@ class OccupancyField(object):
 
     def __init__(self):
         # grab the map from the map server
-        rospy.wait_for_service("static_map")
+        rospy.wait_for_service("static_map", timeout=10)
+
         static_map = rospy.ServiceProxy("static_map", GetMap)
         self.map = static_map().map
 

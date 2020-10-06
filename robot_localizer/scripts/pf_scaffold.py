@@ -39,7 +39,7 @@ class Particle(object):
             x: the x-coordinate of the hypothesis relative to the map frame
             y: the y-coordinate of the hypothesis relative ot the map frame
             theta: the yaw of the hypothesis relative to the map frame
-            w: the particle weight (the class does not ensure that particle weights are normalized """ 
+            w: the particle weight (the class does not ensure that particle weights are normalized """
         self.w = w
         self.theta = theta
         self.x = x
@@ -81,7 +81,7 @@ class ParticleFilter:
         self.base_frame = "base_link"   # the frame of the robot base
         self.map_frame = "map"          # the name of the map coordinate frame
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
-        self.scan_topic = "scan"        # the topic where we will get laser scans from 
+        self.scan_topic = "scan"        # the topic where we will get laser scans from
 
         self.n_particles = 300          # the number of particles to use
 
@@ -232,6 +232,7 @@ class ParticleFilter:
                                   poses=particles_conv))
 
     def scan_received(self, msg):
+        print("SCAN RECEIVED")
         """ This is the default logic for what to do when processing scan data.
             Feel free to modify this, however, we hope it will provide a good
             guide.  The input msg is an object of type sensor_msgs/LaserScan """
@@ -285,10 +286,12 @@ class ParticleFilter:
         self.publish_particles(msg)
 
 if __name__ == '__main__':
+    print("hello")
     n = ParticleFilter()
     r = rospy.Rate(5)
 
     while not(rospy.is_shutdown()):
+        print("Yooooo")
         # in the main loop all we do is continuously broadcast the latest map to odom transform
         n.transform_helper.send_last_map_to_odom_transform()
         r.sleep()
