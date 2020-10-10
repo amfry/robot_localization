@@ -90,6 +90,8 @@ class ParticleFilter:
 
         self.laser_max_distance = 2.0   # maximum penalty to assess in the likelihood field model
 
+        self.odom_pose = None
+
         # TODO: define additional constants if needed
 
         # Setup pubs and subs
@@ -142,7 +144,7 @@ class ParticleFilter:
     def projected_scan_received(self, msg):
         self.last_projected_stable_scan = msg
 
-    def update_particles_with_odom(self, msg):
+    def update_particles_with_odom(self):
         """ Update the particles using the newly given odometry pose.
             The function computes the value delta which is a tuple (x,y,theta)
             that indicates the change in position and angle between the odometry
@@ -238,16 +240,20 @@ class ParticleFilter:
         """ This is the default logic for what to do when processing scan data.
             Feel free to modify this, however, we hope it will provide a good
             guide.  The input msg is an object of type sensor_msgs/LaserScan """
+        print("Sup")
         if not(self.initialized):
+            print("Case 1")
             # wait for initialization to complete
             return
 
         if not(self.tf_listener.canTransform(self.base_frame, msg.header.frame_id, msg.header.stamp)):
+            print("Case 2")
             # need to know how to transform the laser to the base frame
             # this will be given by either Gazebo or neato_node
             return
 
         if not(self.tf_listener.canTransform(self.base_frame, self.odom_frame, msg.header.stamp)):
+            print("Case 3")
             # need to know how to transform between base and odometric frames
             # this will eventually be published by either Gazebo or neato_node
             return
@@ -299,4 +305,6 @@ if __name__ == '__main__':
         print("Yooooo")
         # in the main loop all we do is continuously broadcast the latest map to odom transform
         n.transform_helper.send_last_map_to_odom_transform()
+
+        print("heck yo")
         r.sleep()
