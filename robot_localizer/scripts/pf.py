@@ -217,8 +217,8 @@ class ParticleFilter:
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose.pose)
         self.particle_cloud = []
-        # TODO create particles
-
+        p1 = Particle()
+        self.particle_cloud.append(p1)
         self.normalize_particles()
         self.update_robot_pose(timestamp)
 
@@ -240,7 +240,6 @@ class ParticleFilter:
         """ This is the default logic for what to do when processing scan data.
             Feel free to modify this, however, we hope it will provide a good
             guide.  The input msg is an object of type sensor_msgs/LaserScan """
-        print("Sup")
         if not(self.initialized):
             print("Case 1")
             # wait for initialization to complete
@@ -258,6 +257,7 @@ class ParticleFilter:
             # this will eventually be published by either Gazebo or neato_node
             return
 
+        print("past cases")
         # calculate pose of laser relative to the robot base
         p = PoseStamped(header=Header(stamp=rospy.Time(0),
                                       frame_id=msg.header.frame_id))
@@ -268,6 +268,7 @@ class ParticleFilter:
                                       frame_id=self.base_frame),
                         pose=Pose())
         self.odom_pose = self.tf_listener.transformPose(self.odom_frame, p)
+        print("self.odom_pose.pose" + str(self.odom_pose.pose))
         # store the the odometry pose in a more convenient format (x,y,theta)
         new_odom_xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose.pose)
         if not self.current_odom_xy_theta:
@@ -281,7 +282,7 @@ class ParticleFilter:
               math.fabs(new_odom_xy_theta[1] - self.current_odom_xy_theta[1]) > self.d_thresh or
               math.fabs(new_odom_xy_theta[2] - self.current_odom_xy_theta[2]) > self.a_thresh):
             # we have moved far enough to do an update!
-            self.update_particles_with_odom(msg)    # update based on odometry
+            self.update_particles_with_odom()    # update based on odometry
             if self.last_projected_stable_scan:
                 last_projected_scan_timeshift = deepcopy(self.last_projected_stable_scan)
                 last_projected_scan_timeshift.header.stamp = msg.header.stamp
@@ -294,17 +295,16 @@ class ParticleFilter:
         self.publish_particles(msg)
 
 if __name__ == '__main__':
-    print("hello")
+
     n = ParticleFilter()
     r = rospy.Rate(5)
-
-    print("beep beep boop boop")
-
     while not(rospy.is_shutdown()):
-        # n.test
-        print("Yooooo")
         # in the main loop all we do is continuously broadcast the latest map to odom transform
+        print(n.initialized)
         n.transform_helper.send_last_map_to_odom_transform()
-
-        print("heck yo")
+       # if n.initialized:
+            # n.initialize_particle_cloud(1)
+            # n.publish_particles()  # if n.initialized:
+            # n.initialize_particle_cloud(1)
+            # n.publish_particles()
         r.sleep()
