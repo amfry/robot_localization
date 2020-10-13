@@ -9,6 +9,7 @@ from sensor_msgs.msg import LaserScan, PointCloud
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, PoseArray, Pose, Point, Quaternion
 from nav_msgs.srv import GetMap
 from copy import deepcopy
+from visualization_msgs.msg import Marker, MarkerArray
 
 import tf
 from tf import TransformListener
@@ -109,6 +110,9 @@ class ParticleFilter:
         self.tf_listener = TransformListener()
         self.tf_broadcaster = TransformBroadcaster()
 
+        ### add publisher for markers
+        self.vis_pub = rospy.Publisher('visualization_marker', Marker, queue_size=10)  # creating a publisher
+
         self.particle_cloud = []
         #
         # # change use_projected_stable_scan to True to use point clouds instead of laser scans
@@ -122,9 +126,6 @@ class ParticleFilter:
         self.occupancy_field = OccupancyField()
         self.transform_helper = TFHelper()
         self.initialized = True
-
-    def test(self):
-        print("test function")
 
     def update_robot_pose(self, timestamp):
         """ Update the estimate of the robot's pose given the updated particles.
@@ -217,8 +218,8 @@ class ParticleFilter:
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose.pose)
         self.particle_cloud = []
-        p1 = Particle()
-        self.particle_cloud.append(p1)
+        for i in range(0,500):
+            self.particle_cloud.append(Particle())
         self.normalize_particles()
         self.update_robot_pose(timestamp)
 
@@ -227,7 +228,8 @@ class ParticleFilter:
         # TODO: implement this
         pass
 
-    def publish_particles(self, msg):
+    def publish_particles(self):
+        # msg used to be here
         particles_conv = []
         for p in self.particle_cloud:
             particles_conv.append(p.as_pose())
@@ -256,8 +258,6 @@ class ParticleFilter:
             # need to know how to transform between base and odometric frames
             # this will eventually be published by either Gazebo or neato_node
             return
-
-        print("past cases")
         # calculate pose of laser relative to the robot base
         p = PoseStamped(header=Header(stamp=rospy.Time(0),
                                       frame_id=msg.header.frame_id))
@@ -268,7 +268,6 @@ class ParticleFilter:
                                       frame_id=self.base_frame),
                         pose=Pose())
         self.odom_pose = self.tf_listener.transformPose(self.odom_frame, p)
-        print("self.odom_pose.pose" + str(self.odom_pose.pose))
         # store the the odometry pose in a more convenient format (x,y,theta)
         new_odom_xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose.pose)
         if not self.current_odom_xy_theta:
@@ -292,7 +291,35 @@ class ParticleFilter:
             self.update_robot_pose(msg.header.stamp)                # update robot's pose
             self.resample_particles()               # resample particles to focus on areas of high density
         # publish particles (so things like rviz can see them)
-        self.publish_particles(msg)
+        self.publish_particles()
+
+
+    ##### visualize each particle w/ marker
+    def get_marker(self, x, y):
+        marker = Marker()
+        marker.header.frame_id = "base_link"
+        marker.type = marker.SPHERE
+        marker.pose.position.x = x
+        marker.pose.position.y = y
+        marker.pose.position.z = 0
+        marker.scale.x = .3
+        marker.scale.y = .3
+        marker.scale.z = .3
+        marker.color.a = 1.0
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+        return marker
+
+    def draw_marker_array(self):
+        #markerArray = MarkerArray()
+        print("he")
+        for p in self.particle_cloud:
+            m = self.get_marker(p.x, p.y)
+            self.vis_pub.publish(m)
+            #markerArray.markers.append(m)
+        return
+
 
 if __name__ == '__main__':
 
@@ -302,9 +329,11 @@ if __name__ == '__main__':
         # in the main loop all we do is continuously broadcast the latest map to odom transform
         print(n.initialized)
         n.transform_helper.send_last_map_to_odom_transform()
-       # if n.initialized:
-            # n.initialize_particle_cloud(1)
-            # n.publish_particles()  # if n.initialized:
-            # n.initialize_particle_cloud(1)
-            # n.publish_particles()
+        if n.initialized:
+            time.sleep(3)
+            print("time: " + str(rospy.Time.now()))
+            n.initialize_particle_cloud(rospy.Time.now())
+            # n.initialize_particle_cloud(rospy.Time.now(), xy_theta=[10,5,2])
+            n.publish_particles()  # if n.initialized:
+            n.draw_marker_array()
         r.sleep()
