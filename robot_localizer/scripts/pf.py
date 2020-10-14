@@ -93,6 +93,10 @@ class ParticleFilter:
         self.laser_max_distance = 2.0   # maximum penalty to assess in the likelihood field model
 
         self.odom_pose = None
+        self.scan_ranges = []
+        self.robo_closest_obj = None
+        self.weights = []
+        self.normalized_weights = []
 
         # TODO: define additional constants if needed
 
@@ -115,6 +119,7 @@ class ParticleFilter:
         self.vis_pub = rospy.Publisher('visualization_markerarray', MarkerArray, queue_size=10)  # creating a publisher
 
         self.particle_cloud = []
+        self.particle_dist = []
         #
         # # change use_projected_stable_scan to True to use point clouds instead of laser scans
         self.use_projected_stable_scan = False
@@ -188,8 +193,11 @@ class ParticleFilter:
 
     def update_particles_with_laser(self, msg):
         """ Updates the particle weights in response to the scan contained in the msg """
-        # TODO: implement this
-        pass
+        for i in self.particle_dist:
+            if not np.isnan(i):
+                w = i/self.robo_closest_obj
+                self.weights.append(w)
+        print("weights" + str(self.weights))
 
     @staticmethod
     def draw_random_sample(choices, probabilities, n):
@@ -206,6 +214,19 @@ class ParticleFilter:
         for i in inds:
             samples.append(deepcopy(choices[int(i)]))
         return samples
+
+    def detect_closest_particle_object(self):
+        o = self.occupancy_field
+        for p in self.particle_cloud:
+            dist = o.get_closest_obstacle_distance(p.x, p.y)
+            self.particle_dist.append(dist)
+
+    def detect_closet_robot_object(self):
+        self.robo_closest_obj = min(self.scan_ranges)
+
+
+
+
 
     def update_initial_pose(self, msg):
         """ Callback function to handle re-initializing the particle filter based on a pose estimate.
@@ -263,6 +284,9 @@ class ParticleFilter:
             # need to know how to transform between base and odometric frames
             # this will eventually be published by either Gazebo or neato_node
             return
+
+        self.scan_ranges = msg.ranges
+
         # calculate pose of laser relative to the robot base
         p = PoseStamped(header=Header(stamp=rospy.Time(0),
                                       frame_id=msg.header.frame_id))
@@ -292,7 +316,7 @@ class ParticleFilter:
                 last_projected_scan_timeshift.header.stamp = msg.header.stamp
                 self.scan_in_base_link = self.tf_listener.transformPointCloud("base_link", last_projected_scan_timeshift)
 
-            self.update_particles_with_laser(msg)   # update based on laser scan
+          # update based on laser scan
             self.update_robot_pose(msg.header.stamp)                # update robot's pose
             self.resample_particles()               # resample particles to focus on areas of high density
         # publish particles (so things like rviz can see them)
@@ -302,7 +326,7 @@ class ParticleFilter:
     ##### visualize each particle w/ marker
     def get_marker(self, x, y):
         marker = Marker()
-        marker.header.frame_id = "base_link"
+        marker.header.frame_id = "map"
         marker.type = marker.SPHERE
         marker.pose.position.x = x
         marker.pose.position.y = y
@@ -323,7 +347,9 @@ class ParticleFilter:
             m = self.get_marker(p.x, p.y)
             # self.vis_pub.publish(m)
             marker_array.markers.append(m)
+        print("w")
         self.vis_pub.publish(marker_array)
+        print(marker_array)
         return
 
 
@@ -339,7 +365,8 @@ if __name__ == '__main__':
             time.sleep(3)
             print("time: " + str(rospy.Time.now()))
             n.initialize_particle_cloud(rospy.Time.now())
-            # n.initialize_particle_cloud(rospy.Time.now(), xy_theta=[10,5,2])
-            n.publish_particles()  # if n.initialized:
             n.draw_marker_array()
+            n.publish_particles()
+            n.detect_closest_particle_object()
+            n.detect_closet_robot_object()
         r.sleep()
