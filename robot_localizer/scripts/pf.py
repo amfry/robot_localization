@@ -19,6 +19,7 @@ from random import gauss
 
 import math
 import time
+import random
 
 import numpy as np
 from numpy.random import random_sample
@@ -111,7 +112,7 @@ class ParticleFilter:
         self.tf_broadcaster = TransformBroadcaster()
 
         ### add publisher for markers
-        self.vis_pub = rospy.Publisher('visualization_marker', Marker, queue_size=10)  # creating a publisher
+        self.vis_pub = rospy.Publisher('visualization_markerarray', MarkerArray, queue_size=10)  # creating a publisher
 
         self.particle_cloud = []
         #
@@ -126,6 +127,8 @@ class ParticleFilter:
         self.occupancy_field = OccupancyField()
         self.transform_helper = TFHelper()
         self.initialized = True
+
+        # self.marker_array = MarkerArray()
 
     def update_robot_pose(self, timestamp):
         """ Update the estimate of the robot's pose given the updated particles.
@@ -219,9 +222,11 @@ class ParticleFilter:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose.pose)
         self.particle_cloud = []
         for i in range(0,500):
-            self.particle_cloud.append(Particle())
+            p = Particle(x=random.random()*10-5, y=random.random()*10-5, theta=np.random.choice(6))
+            self.particle_cloud.append(p)
         self.normalize_particles()
         self.update_robot_pose(timestamp)
+
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
@@ -312,12 +317,13 @@ class ParticleFilter:
         return marker
 
     def draw_marker_array(self):
-        #markerArray = MarkerArray()
+        marker_array = MarkerArray()
         print("he")
         for p in self.particle_cloud:
             m = self.get_marker(p.x, p.y)
-            self.vis_pub.publish(m)
-            #markerArray.markers.append(m)
+            # self.vis_pub.publish(m)
+            marker_array.markers.append(m)
+        self.vis_pub.publish(marker_array)
         return
 
 
