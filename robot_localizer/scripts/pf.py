@@ -97,6 +97,10 @@ class ParticleFilter:
         self.robo_closest_obj = None
         self.weights = []
         self.normalized_weights = []
+        self.scan_angles = []
+        self.scan_distances = []
+        self.scan_coordinates_map = []
+        self.num_particles = 500
 
         # TODO: define additional constants if needed
 
@@ -197,12 +201,7 @@ class ParticleFilter:
             if not np.isnan(i):
                 w = i/self.robo_closest_obj
                 self.weights.append(w)
-        print("weights" + str(self.weights))
-
-    def project_scan_from_particle(self):
-        p = self.particle_cloud[0]
-        r = 
-        x = p.x
+        # print("weights" + str(self.weights))
 
     @staticmethod
     def draw_random_sample(choices, probabilities, n):
@@ -220,15 +219,48 @@ class ParticleFilter:
             samples.append(deepcopy(choices[int(i)]))
         return samples
 
-    def detect_closest_particle_object(self):
-        o = self.occupancy_field
+    # def detect_closest_particle_object(self):
+    #     o = self.occupancy_field
+    #     for p in self.particle_cloud:
+    #         dist = o.get_closest_obstacle_distance(p.x, p.y)
+    #         self.particle_dist.append(dist)
+    #
+    # def detect_closet_robot_object(self):
+    #     self.robo_closest_obj = min(self.scan_ranges)
+
+    def select_robo_scan_points(self,num):
+        # num is the number of points from the scan
+        # generate the angles we want to sample from scan and get those dist
+        spacing = 360/num
+        for i in range(0,num):
+            angle_val = i * spacing
+            self.scan_angles.append(angle_val)
+        for i in self.scan_angles:
+            dist_val = self.scan_ranges[int(i)]
+            self.scan_distances.append(dist_val)
+        # print("angles" + str(self.scan_angles))
+        # print("dist" + str(self.scan_distances))
+
+    def send_scan_from_base_link_to_map_frame(self, particle_obj):
+    # send laser_scan points from neato frame (base link) to the map frame from 1 particle
+        print("size: " + str(len(self.scan_distances)))
+        for i in range(0,len(self.scan_distances)):
+            print(i)
+            r = self.scan_distances[i]
+            phi = self.scan_angles[i]
+            theta = particle_obj.theta
+            particle_x = particle_obj.x
+            particle_y = particle_obj.y
+            x = r * np.cos(np.deg2rad(phi)+theta) + particle_x
+            y = r * np.sin(np.deg2rad(phi)+theta) + particle_y
+            val = [x, y]
+            self.scan_coordinates_map.append(val)
+
+    def scan_loc_from_particles(self):
+        # project all scan points from each particle in the particle cloud
         for p in self.particle_cloud:
-            dist = o.get_closest_obstacle_distance(p.x, p.y)
-            self.particle_dist.append(dist)
-
-    def detect_closet_robot_object(self):
-        self.robo_closest_obj = min(self.scan_ranges)
-
+            # print("howdy")
+            self.send_scan_from_base_link_to_map_frame(p)
 
 
 
@@ -247,7 +279,7 @@ class ParticleFilter:
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose.pose)
         self.particle_cloud = []
-        for i in range(0,500):
+        for i in range(0,self.num_particles):
             p = Particle(x=random.random()*10-5, y=random.random()*10-5, theta=np.random.choice(6))
             self.particle_cloud.append(p)
         self.normalize_particles()
@@ -274,18 +306,18 @@ class ParticleFilter:
             Feel free to modify this, however, we hope it will provide a good
             guide.  The input msg is an object of type sensor_msgs/LaserScan """
         if not(self.initialized):
-            print("Case 1")
+            # print("Case 1")
             # wait for initialization to complete
             return
 
         if not(self.tf_listener.canTransform(self.base_frame, msg.header.frame_id, msg.header.stamp)):
-            print("Case 2")
+            # print("Case 2")
             # need to know how to transform the laser to the base frame
             # this will be given by either Gazebo or neato_node
             return
 
         if not(self.tf_listener.canTransform(self.base_frame, self.odom_frame, msg.header.stamp)):
-            print("Case 3")
+            # print("Case 3")
             # need to know how to transform between base and odometric frames
             # this will eventually be published by either Gazebo or neato_node
             return
@@ -310,7 +342,7 @@ class ParticleFilter:
 
         if not(self.particle_cloud):
             # now that we have all of the necessary transforms we can update the particle cloud
-            self.initialize_particle_cloud(msg.header.stamp)
+            self.initialize_particle_cloud(msg.header.stamp, self.num_particles)
         elif (math.fabs(new_odom_xy_theta[0] - self.current_odom_xy_theta[0]) > self.d_thresh or
               math.fabs(new_odom_xy_theta[1] - self.current_odom_xy_theta[1]) > self.d_thresh or
               math.fabs(new_odom_xy_theta[2] - self.current_odom_xy_theta[2]) > self.a_thresh):
@@ -347,32 +379,41 @@ class ParticleFilter:
 
     def draw_marker_array(self):
         marker_array = MarkerArray()
-        print("he")
+        # print("he")
         for i, p in enumerate(self.particle_cloud):
             m = self.get_marker(p.x, p.y)
             m.id = i
             # self.vis_pub.publish(m)
             marker_array.markers.append(m)
-        print("w")
+        # print("w")
         self.vis_pub.publish(marker_array)
-        print(marker_array)
+        # print(marker_array)
         return
 
 
 if __name__ == '__main__':
-
+    counter = 0
     n = ParticleFilter()
     r = rospy.Rate(5)
     while not(rospy.is_shutdown()):
         # in the main loop all we do is continuously broadcast the latest map to odom transform
         print(n.initialized)
         n.transform_helper.send_last_map_to_odom_transform()
-        if n.initialized:
+        while n.initialized:
+            counter += 1
+            print("counter: " + str(counter))
             time.sleep(3)
-            print("time: " + str(rospy.Time.now()))
-            n.initialize_particle_cloud(rospy.Time.now())
-            n.draw_marker_array()
-            n.publish_particles()
-            n.detect_closest_particle_object()
-            n.detect_closet_robot_object()
+            # print("time: " + str(rospy.Time.now()))
+            n.initialize_particle_cloud(rospy.Time.now(), 10)
+            # n.draw_marker_array()
+            # n.publish_particles()
+            if counter == 1:
+                # only generate the sample angles 1 time
+                n.select_robo_scan_points(5)
+            n.scan_loc_from_particles()
+            print(n.scan_coordinates_map)  #only want this when new particles and the list needs to be cleared
+            print(len(n.scan_coordinates_map))
+
+            #list to clear after each set of particles in generate
+            n.scan_coordinates_map = []
         r.sleep()
