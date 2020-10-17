@@ -199,6 +199,11 @@ class ParticleFilter:
                 self.weights.append(w)
         print("weights" + str(self.weights))
 
+    def project_scan_from_particle(self):
+        p = self.particle_cloud[0]
+        r = 
+        x = p.x
+
     @staticmethod
     def draw_random_sample(choices, probabilities, n):
         """ Return a random sample of n elements from the set choices with the specified probabilities
@@ -343,8 +348,9 @@ class ParticleFilter:
     def draw_marker_array(self):
         marker_array = MarkerArray()
         print("he")
-        for p in self.particle_cloud:
+        for i, p in enumerate(self.particle_cloud):
             m = self.get_marker(p.x, p.y)
+            m.id = i
             # self.vis_pub.publish(m)
             marker_array.markers.append(m)
         print("w")
