@@ -100,7 +100,13 @@ class ParticleFilter:
         self.scan_angles = []
         self.scan_distances = []
         self.scan_coordinates_map = []
+        self.dist_between_pts_and_map = []
+        self.bell_values = []
+        self.weights = []
+        self.normalized_weights = []
+
         self.num_particles = 500
+        self.sample_num = 5
 
         # TODO: define additional constants if needed
 
@@ -231,15 +237,17 @@ class ParticleFilter:
     def select_robo_scan_points(self,num):
         # num is the number of points from the scan
         # generate the angles we want to sample from scan and get those dist
+        #scan points are coming from neato frame
         spacing = 360/num
         for i in range(0,num):
             angle_val = i * spacing
             self.scan_angles.append(angle_val)
+
+
+    def select_robo_scan_distances(self):
         for i in self.scan_angles:
             dist_val = self.scan_ranges[int(i)]
             self.scan_distances.append(dist_val)
-        # print("angles" + str(self.scan_angles))
-        # print("dist" + str(self.scan_distances))
 
     def send_scan_from_base_link_to_map_frame(self, particle_obj):
     # send laser_scan points from neato frame (base link) to the map frame from 1 particle
@@ -262,7 +270,26 @@ class ParticleFilter:
             # print("howdy")
             self.send_scan_from_base_link_to_map_frame(p)
 
+    def get_dist_between_scan_point_and_map(self):
+        # computes the distance between scan points projected from every particle and the nearest object on the map
+        for s in self.scan_coordinates_map:
+            x = s[0]
+            y = s[1]
+            val = self.occupancy_field.get_closest_obstacle_distance(x, y)
+            self.dist_between_pts_and_map.append(val)
 
+    def distance_to_bell_vals(self):
+        for d in self.dist_between_pts_and_map:
+            val = math.e **(-1*d**(2))
+            self.bell_values.append(val)
+
+    def bell_vals_to_weights(self):
+        for i in range(0, len(self.bell_values), self.sample_num):
+            vals = self.bell_values[i:i + self.sample_num-1]
+            print("vals: " + str(vals))
+            self.weights.append(sum(vals))
+
+#### normalize those weights
 
 
     def update_initial_pose(self, msg):
@@ -390,6 +417,13 @@ class ParticleFilter:
         # print(marker_array)
         return
 
+    def reset_for_new_particles(self):
+        self.scan_coordinates_map = []
+        self.scan_distances = []
+        self.dist_between_pts_and_map = []
+        self.bell_values = []
+        self.weights = []
+        self.normalized_weights = []
 
 if __name__ == '__main__':
     counter = 0
@@ -409,11 +443,16 @@ if __name__ == '__main__':
             # n.publish_particles()
             if counter == 1:
                 # only generate the sample angles 1 time
-                n.select_robo_scan_points(5)
+                n.select_robo_scan_points(n.sample_num)
+            n.select_robo_scan_distances()
             n.scan_loc_from_particles()
-            print(n.scan_coordinates_map)  #only want this when new particles and the list needs to be cleared
-            print(len(n.scan_coordinates_map))
-
+            n.get_dist_between_scan_point_and_map()
+            n.distance_to_bell_vals()
+            n.bell_vals_to_weights()
+            print("------")
+            print(n.weights)
+            print(len(n.weights))
+            print("------")
             #list to clear after each set of particles in generate
-            n.scan_coordinates_map = []
+            n.reset_for_new_particles()
         r.sleep()
