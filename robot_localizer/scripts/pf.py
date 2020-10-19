@@ -105,8 +105,10 @@ class ParticleFilter:
         self.weights = []
         self.normalized_weights = []
 
-        self.num_particles = 500
+        self.num_particles = 100
         self.sample_num = 5
+
+        self.resample_threshold = 1 / self.num_particles
 
         # TODO: define additional constants if needed
 
@@ -152,7 +154,7 @@ class ParticleFilter:
                 (2): compute the most likely pose (i.e. the mode of the distribution)
         """
         # first make sure that the particle weights are normalized
-        self.normalize_particles()
+        # self.normalize_particles()
 
         # TODO: assign the latest pose into self.robot_pose as a geometry_msgs.Pose object
         # just to get started we will fix the robot's pose to always be at the origin
@@ -191,15 +193,15 @@ class ParticleFilter:
         # TODO: nothing unless you want to try this alternate likelihood model
         pass
 
-    def resample_particles(self):
-        """ Resample the particles according to the new particle weights.
-            The weights stored with each particle should define the probability that a particular
-            particle is selected in the resampling step.  You may want to make use of the given helper
-            function draw_random_sample.
-        """
-        # make sure the distribution is normalized
-        self.normalize_particles()
-        # TODO: fill out the rest of the implementation
+    # def resample_particles(self):
+    #     """ Resample the particles according to the new particle weights.
+    #         The weights stored with each particle should define the probability that a particular
+    #         particle is selected in the resampling step.  You may want to make use of the given helper
+    #         function draw_random_sample.
+    #     """
+    #     # make sure the distribution is normalized
+    #     self.normalize_particles()
+    #     # TODO: fill out the rest of the implementation
 
     def update_particles_with_laser(self, msg):
         """ Updates the particle weights in response to the scan contained in the msg """
@@ -224,15 +226,6 @@ class ParticleFilter:
         for i in inds:
             samples.append(deepcopy(choices[int(i)]))
         return samples
-
-    # def detect_closest_particle_object(self):
-    #     o = self.occupancy_field
-    #     for p in self.particle_cloud:
-    #         dist = o.get_closest_obstacle_distance(p.x, p.y)
-    #         self.particle_dist.append(dist)
-    #
-    # def detect_closet_robot_object(self):
-    #     self.robo_closest_obj = min(self.scan_ranges)
 
     def select_robo_scan_points(self,num):
         # num is the number of points from the scan
@@ -279,7 +272,9 @@ class ParticleFilter:
             self.dist_between_pts_and_map.append(val)
 
     def distance_to_bell_vals(self):
+        self.filter_distances()
         for d in self.dist_between_pts_and_map:
+            print("distance: " + str(d))
             val = math.e **(-1*d**(2))
             self.bell_values.append(val)
 
@@ -288,6 +283,25 @@ class ParticleFilter:
             vals = self.bell_values[i:i + self.sample_num-1]
             print("vals: " + str(vals))
             self.weights.append(sum(vals))
+
+    def filter_distances(self):
+        for i in range(0,len(self.dist_between_pts_and_map)):
+            if math.isnan(self.dist_between_pts_and_map[i]):
+                self.dist_between_pts_and_map[i] = 0
+
+    def normalize_weights(self):
+        s = sum(self.weights)
+        for w in self.weights:
+            val = w / s
+            self.normalized_weights.append(val)
+        self.assign_weights_to_particles()
+
+    def assign_weights_to_particles(self):
+        for i in range(len(self.particle_cloud)):
+            self.particle_cloud[i].w = self.normalized_weights[i]
+
+    def resample_particles(self):
+        self.particle_cloud = self.draw_random_sample(self.particle_cloud, self.normalized_weights, self.num_particles)
 
 #### normalize those weights
 
@@ -309,14 +323,14 @@ class ParticleFilter:
         for i in range(0,self.num_particles):
             p = Particle(x=random.random()*10-5, y=random.random()*10-5, theta=np.random.choice(6))
             self.particle_cloud.append(p)
-        self.normalize_particles()
+        # self.normalize_particles()
         self.update_robot_pose(timestamp)
 
 
-    def normalize_particles(self):
-        """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
-        # TODO: implement this
-        pass
+    # def normalize_particles(self):
+    #     """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
+    #     # TODO: implement this
+    #     pass
 
     def publish_particles(self):
         # msg used to be here
@@ -388,16 +402,16 @@ class ParticleFilter:
 
 
     ##### visualize each particle w/ marker
-    def get_marker(self, x, y):
+    def get_marker(self, x, y, w):
         marker = Marker()
         marker.header.frame_id = "map"
         marker.type = marker.SPHERE
         marker.pose.position.x = x
         marker.pose.position.y = y
         marker.pose.position.z = 0
-        marker.scale.x = .3
-        marker.scale.y = .3
-        marker.scale.z = .3
+        marker.scale.x = w
+        marker.scale.y = w
+        marker.scale.z = w
         marker.color.a = 1.0
         marker.color.r = 0.0
         marker.color.g = 1.0
@@ -408,7 +422,8 @@ class ParticleFilter:
         marker_array = MarkerArray()
         # print("he")
         for i, p in enumerate(self.particle_cloud):
-            m = self.get_marker(p.x, p.y)
+            print("i = " + str(i))
+            m = self.get_marker(p.x, p.y, p.w*self.num_particles/5)
             m.id = i
             # self.vis_pub.publish(m)
             marker_array.markers.append(m)
@@ -431,7 +446,7 @@ if __name__ == '__main__':
     r = rospy.Rate(5)
     while not(rospy.is_shutdown()):
         # in the main loop all we do is continuously broadcast the latest map to odom transform
-        print(n.initialized)
+        # print(n.initialized)
         n.transform_helper.send_last_map_to_odom_transform()
         while n.initialized:
             counter += 1
@@ -439,8 +454,7 @@ if __name__ == '__main__':
             time.sleep(3)
             # print("time: " + str(rospy.Time.now()))
             n.initialize_particle_cloud(rospy.Time.now(), 10)
-            # n.draw_marker_array()
-            # n.publish_particles()
+
             if counter == 1:
                 # only generate the sample angles 1 time
                 n.select_robo_scan_points(n.sample_num)
@@ -449,10 +463,16 @@ if __name__ == '__main__':
             n.get_dist_between_scan_point_and_map()
             n.distance_to_bell_vals()
             n.bell_vals_to_weights()
-            print("------")
-            print(n.weights)
-            print(len(n.weights))
-            print("------")
+            n.normalize_weights()
+            n.draw_marker_array()
+            time.sleep(5)
+            n.resample_particles()
+            # print("------")
+            # print(n.normalized_weights)
+            # print(len(n.normalized_weights))
+            # print("SUM: " + str(sum(n.normalized_weights)))
+            # print("------")
             #list to clear after each set of particles in generate
             n.reset_for_new_particles()
+
         r.sleep()
