@@ -103,7 +103,7 @@ class ParticleFilter:
         self.weights = []
         self.normalized_weights = []
 
-        self.num_particles = 200
+        self.num_particles = 5
         self.sample_num = 4
 
         self.resample_threshold = 1 / self.num_particles
@@ -182,15 +182,38 @@ class ParticleFilter:
 
             self.current_odom_xy_theta = new_odom_xy_theta
 
-            print("delta: " + str(delta))
+            #print("delta: " + str(delta))
         else:
             self.current_odom_xy_theta = new_odom_xy_theta
             return
-        for p in self.particle_cloud:
-            p.x = p.x + delta[0]
-            p.y = p.y + delta[1]
-            p.theta = p.theta + delta[2]
+        alpha = math.atan(delta[1]/delta[0])  # angle of d[0] & d[1]
 
+        for p in self.particle_cloud:
+            beta = p.theta + alpha  # direction of delta vector in map frame
+            if 0 < beta < math.pi/2:
+                # Q1
+                print("Q1")
+                p.x = p.x + delta[0]
+                p.y = p.y + delta[1]
+                p.theta = p.theta + delta[2]
+            if math.pi/2 <= beta < math.pi:
+                # Q2
+                print("Q2")
+                p.x = p.x - delta[0]
+                p.y = p.y + delta[1]
+                p.theta = p.theta + delta[2]
+            if math.pi <= beta < (3*math.pi) / 2:
+                # Q3
+                print("Q3")
+                p.x = p.x - delta[0]
+                p.y = p.y - delta[1]
+                p.theta = p.theta + delta[2]
+            if (3 * math.pi) / 4 <= beta < 2 * math.pi:
+                # Q4
+                print("Q4")
+                p.x = p.x + delta[0]
+                p.y = p.y - delta[1]
+                p.theta = p.theta + delta[2]
 
         # TODO: modify particles using delta
 
@@ -360,16 +383,12 @@ class ParticleFilter:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose.pose)
         self.particle_cloud = []
         for i in range(0,self.num_particles):
-            p = Particle(x=random.random()*10-5, y=random.random()*10-5, theta=np.random.choice(6))
+            p = Particle(x=random.random()*5-2.5, y=random.random()*5-2.5, theta=np.random.choice(6))
             self.particle_cloud.append(p)
-        # self.normalize_particles()
         self.update_robot_pose(timestamp)
-
-
-    # def normalize_particles(self):
-    #     """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
-    #     # TODO: implement this
-    #     pass
+        fake_particle = Particle(x=4, y=0, theta=2.904)
+        self.particle_cloud[0] = fake_particle
+        self.update_robot_pose(timestamp)
 
     def publish_particles(self):
         # msg used to be here
