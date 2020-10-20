@@ -85,8 +85,6 @@ class ParticleFilter:
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
         self.scan_topic = "scan"        # the topic where we will get laser scans from
 
-        self.n_particles = 300          # the number of particles to use
-
         self.d_thresh = 0.2             # the amount of linear movement before performing an update
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
 
@@ -105,8 +103,8 @@ class ParticleFilter:
         self.weights = []
         self.normalized_weights = []
 
-        self.num_particles = 100
-        self.sample_num = 5
+        self.num_particles = 2
+        self.sample_num = 2
 
         self.resample_threshold = 1 / self.num_particles
 
@@ -244,9 +242,9 @@ class ParticleFilter:
 
     def send_scan_from_base_link_to_map_frame(self, particle_obj):
     # send laser_scan points from neato frame (base link) to the map frame from 1 particle
-        print("size: " + str(len(self.scan_distances)))
+        # print("size: " + str(len(self.scan_distances)))
         for i in range(0,len(self.scan_distances)):
-            print(i)
+            # print(i)
             r = self.scan_distances[i]
             phi = self.scan_angles[i]
             theta = particle_obj.theta
@@ -263,6 +261,35 @@ class ParticleFilter:
             # print("howdy")
             self.send_scan_from_base_link_to_map_frame(p)
 
+    def get_scan_marker(self, x, y):
+        marker = Marker()
+        marker.header.frame_id = "map"
+        marker.type = marker.SPHERE
+        marker.pose.position.x = x
+        marker.pose.position.y = y
+        marker.pose.position.z = 0
+        marker.scale.x = 0.2
+        marker.scale.y = 0.2
+        marker.scale.z = 0.2
+        marker.color.a = 1.0
+        marker.color.r = 0.5
+        marker.color.g = 0.0
+        marker.color.b = 0.5
+        return marker
+
+    def draw_scan_marker_array(self):
+        print("ELECTRIC BOOGALOOOOOO")
+        marker_array = MarkerArray()
+        for i, s in enumerate(self.scan_coordinates_map):
+            # print("i = " + str(i))
+            m = self.get_scan_marker(s[0], s[1])
+            print(s[0], s[1])
+            m.id = i
+            marker_array.markers.append(m)
+        # print("w")
+        self.vis_pub.publish(marker_array)
+        return
+
     def get_dist_between_scan_point_and_map(self):
         # computes the distance between scan points projected from every particle and the nearest object on the map
         for s in self.scan_coordinates_map:
@@ -274,20 +301,24 @@ class ParticleFilter:
     def distance_to_bell_vals(self):
         self.filter_distances()
         for d in self.dist_between_pts_and_map:
-            print("distance: " + str(d))
-            val = math.e **(-1*d**(2))
+            # print("distance: " + str(d))
+            val = (math.e **(-1*d**(2)))**3
             self.bell_values.append(val)
+        # print("---------------------")
+        # # print(self.bell_values)
+        # print("LENGTH: " + str(len(self.bell_values)))
+        # print("---------------------")
 
     def bell_vals_to_weights(self):
         for i in range(0, len(self.bell_values), self.sample_num):
             vals = self.bell_values[i:i + self.sample_num-1]
-            print("vals: " + str(vals))
-            self.weights.append(sum(vals))
+            # print("vals: " + str(vals))
+            self.weights.append(sum(vals) / self.sample_num)
 
     def filter_distances(self):
         for i in range(0,len(self.dist_between_pts_and_map)):
             if math.isnan(self.dist_between_pts_and_map[i]):
-                self.dist_between_pts_and_map[i] = 0
+                self.dist_between_pts_and_map[i] = 10
 
     def normalize_weights(self):
         s = sum(self.weights)
@@ -396,7 +427,7 @@ class ParticleFilter:
 
           # update based on laser scan
             self.update_robot_pose(msg.header.stamp)                # update robot's pose
-            self.resample_particles()               # resample particles to focus on areas of high density
+            # self.resample_particles()               # resample particles to focus on areas of high density
         # publish particles (so things like rviz can see them)
         self.publish_particles()
 
@@ -422,7 +453,7 @@ class ParticleFilter:
         marker_array = MarkerArray()
         # print("he")
         for i, p in enumerate(self.particle_cloud):
-            print("i = " + str(i))
+            # print("i = " + str(i))
             m = self.get_marker(p.x, p.y, p.w*self.num_particles/5)
             m.id = i
             # self.vis_pub.publish(m)
@@ -464,9 +495,10 @@ if __name__ == '__main__':
             n.distance_to_bell_vals()
             n.bell_vals_to_weights()
             n.normalize_weights()
-            n.draw_marker_array()
-            time.sleep(5)
             n.resample_particles()
+            # n.draw_marker_array()
+            n.draw_scan_marker_array()
+            time.sleep(0.5)
             # print("------")
             # print(n.normalized_weights)
             # print(len(n.normalized_weights))
