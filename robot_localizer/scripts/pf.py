@@ -85,7 +85,7 @@ class ParticleFilter:
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
         self.scan_topic = "scan"        # the topic where we will get laser scans from
 
-        self.d_thresh = 0.2             # the amount of linear movement before performing an update
+        self.d_thresh = 0.25             # the amount of linear movement before performing an update
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
 
         self.laser_max_distance = 2.0   # maximum penalty to assess in the likelihood field model
@@ -103,10 +103,11 @@ class ParticleFilter:
         self.weights = []
         self.normalized_weights = []
 
-        self.num_particles = 2
-        self.sample_num = 2
+        self.num_particles = 200
+        self.sample_num = 4
 
         self.resample_threshold = 1 / self.num_particles
+
 
         # TODO: define additional constants if needed
 
@@ -180,9 +181,16 @@ class ParticleFilter:
                      new_odom_xy_theta[2] - self.current_odom_xy_theta[2])
 
             self.current_odom_xy_theta = new_odom_xy_theta
+
+            print("delta: " + str(delta))
         else:
             self.current_odom_xy_theta = new_odom_xy_theta
             return
+        for p in self.particle_cloud:
+            p.x = p.x + delta[0]
+            p.y = p.y + delta[1]
+            p.theta = p.theta + delta[2]
+
 
         # TODO: modify particles using delta
 
@@ -425,6 +433,15 @@ class ParticleFilter:
                 last_projected_scan_timeshift.header.stamp = msg.header.stamp
                 self.scan_in_base_link = self.tf_listener.transformPointCloud("base_link", last_projected_scan_timeshift)
 
+            #### resample section
+            n.select_robo_scan_distances()
+            n.scan_loc_from_particles()
+            n.get_dist_between_scan_point_and_map()
+            n.distance_to_bell_vals()
+            n.bell_vals_to_weights()
+            n.normalize_weights()
+            n.resample_particles()
+            n.reset_for_new_particles()
           # update based on laser scan
             self.update_robot_pose(msg.header.stamp)                # update robot's pose
             # self.resample_particles()               # resample particles to focus on areas of high density
@@ -483,22 +500,12 @@ if __name__ == '__main__':
             counter += 1
             print("counter: " + str(counter))
             time.sleep(3)
-            # print("time: " + str(rospy.Time.now()))
             n.initialize_particle_cloud(rospy.Time.now(), 10)
-
             if counter == 1:
                 # only generate the sample angles 1 time
                 n.select_robo_scan_points(n.sample_num)
-            n.select_robo_scan_distances()
-            n.scan_loc_from_particles()
-            n.get_dist_between_scan_point_and_map()
-            n.distance_to_bell_vals()
-            n.bell_vals_to_weights()
-            n.normalize_weights()
-            n.resample_particles()
-            # n.draw_marker_array()
-            n.draw_scan_marker_array()
-            time.sleep(0.5)
+            n.draw_marker_array()
+            # n.draw_scan_marker_array()
             # print("------")
             # print(n.normalized_weights)
             # print(len(n.normalized_weights))
