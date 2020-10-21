@@ -6,16 +6,31 @@ For the 2nd mini-project for Introduction to Computational Robotics, we designed
 
 ![Converge](documentation/convergence.gif)
 
-### Design Decisons
-##### Flexible Particle and Laser Samples
-Our particle filter has some adjustable parameters, like the number of particles and the number of laser scan points used. We decided it would be useful to be able to adjust these parameters for debugging purposes, and it's also nice to have some flexibility when using the filter in general.
-
-
-After we measure the distance between each point in the projected laser scan and the nearest object on the map, we use a bell curve function to convert that value to a weight.
-
 ![Flow](https://github.com/amfry/robot_localization/blob/master/documentation/flow.png)
 
+##### Initialization
+The particle filter initializes n particles in a 5x8 meter rectangle around the map given in the bag file (for our deliverable we used n=300). We only perform this completely random distribution step once, and all further particle cloud adjustments are based on the relation of the particles with respect to the bag file data.
+
+##### Calculating Weights
+The lidar sensor on the robot collects data about the distances to nearest objects in a full 360 degree range. The filter picks s scan samples to pare down the scan data so as not to slow down the program drastically (for our deliverable we used s=5). This scan data is projected at the position of each particle to estimate the likelihood that a particle is at the robot’s actual location. For each particle, this weight calculation begins with the distance from the scan points to the nearest objects in the map frame. Lower distance values are preferable, and a case where the scan points are all overlapping objects in the map is the best case scenario. Then the distances are converted to actual weight values using a bell curve distribution (e^-d^2.)^3 This bell curve provides a magnified inverse of the distance which is useful because a lower distance should produce a higher weight. The final weight is the normalized sum of the  projected scan weights for each particle.
+
 ![Part](https://github.com/amfry/robot_localization/blob/master/documentation/part.png)
+
+##### Updating Particles
+The weight values are fed into a function that draws random samples from the list of particles. Particles with higher weight values are more likely to be chosen, and the function returns the original n number of particles. This means that many of the resampled particles will likely be overlapping. To account for this, some noise is introduced into the resampled particle cloud. This noise prevents the filter from zeroing in on target too aggressively and allows the particle filter some room for correction. Once the particles are redistributed, the positions are adjusted according to the motion of the actual robot. The direction vector of the robots movement is projected onto each particle, and each particle moves in the appropriate direction and magnitude in it’s own frame of reference.
+
+##### Estimating Robot Pose
+The robot pose is estimated by taking the average of all the xy positions and headings in the particle cloud.
+
+### Design Decisons
+##### Flexible Particle and Laser Samples
+Our particle filter has parameters that allow us to consider how varying number of scan points and particles impacts the behavior of the filter.  This was a helpful tool in debugging to be able to qucikly switch between validating a particle's projected laser scan and how 4 laser scan points taken at even intervals impacted the convergence of the filter.
+
+### Normal Disribution
+
+After we measure the distance between each point in the projected laser scan and the nearest object on the map, we use a bell curve function to convert that value to a weight. Using 
+
+
 
 ### Challenges
 ##### Too Much Convergence ?
