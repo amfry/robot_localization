@@ -2,7 +2,7 @@
 
 ### Implementation
 
-For the 2nd mini-project for Introduction to Computational Robotics, we designed a particle filter to solve a robot locailzation challenge. Given a map, our goal was to locate the robot using lidar, odometery, and preexisting map data. Our final implementation of the particle filter shows clear convergence and further tuning of variance and particle distribution we belief the partilce filter could be improved.
+For the 2nd mini-project for Introduction to Computational Robotics, we designed a particle filter to solve a robot locailzation challenge. Given a map, our goal was to locate the robot using lidar, odometery, and preexisting map data. Our final implementation of the particle filter shows clear convergence and with further tuning of variance and particle distribution we belief the partilce filter could be improved.
 
 ![](documentation/convergence.gif)
 
