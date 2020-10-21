@@ -2,11 +2,9 @@
 
 ### Implementation
 
-For the 2nd mini-project for Introduction to Computational Robotics, we designed a particle filter to solve a robot locailzation challenge. Given a map, our goal was to locate the robot using lidar, odometery, and preexisting map data. Our final implementation of the particle filter shows clear convergence and with further tuning of variance and particle distribution we belief the partilce filter could be improved.
+For the 2nd mini-project for Introduction to Computational Robotics, we designed a particle filter to solve a robot localization challenge. Given a map, our goal was to locate the robot using lidar, odometery, and preexisting map data. Our final implementation of the particle filter shows clear convergence and with further tuning of variance and particle distribution we belief the partilce filter could be improved.
 
 ![Converge](documentation/convergence.gif)
-
-![Flow](https://github.com/amfry/robot_localization/blob/master/documentation/flow.png)
 
 ##### Initialization
 The particle filter initializes n particles in a 5x8 meter rectangle around the map given in the bag file (for our deliverable we used n=300). We only perform this completely random distribution step once, and all further particle cloud adjustments are based on the relation of the particles with respect to the bag file data.
@@ -26,15 +24,19 @@ The robot pose is estimated by taking the average of all the xy positions and he
 ##### Flexible Particle and Laser Samples
 Our particle filter has parameters that allow us to consider how varying number of scan points and particles impacts the behavior of the filter.  This was a helpful tool in debugging to be able to qucikly switch between validating a particle's projected laser scan and how 4 laser scan points taken at even intervals impacted the convergence of the filter.
 
-### Normal Disribution
+##### Normal Disribution
 
-After we measure the distance between each point in the projected laser scan and the nearest object on the map, we use a bell curve function to convert that value to a weight. Using 
+After we measure the distance between each point in the projected laser scan and the nearest object on the map, we use a bell curve function to convert that value to a weight. Normal distribution is useful because it converts a small distance value to a large weight. This is magnified further by cubing the result.
 
+##### Modular Code Structure
+The particle filter is composed of many small functions that can be validated individually. This approach in our process allowed us to build up the program incrementally and makes the code more readable.
+
+![Flow](https://github.com/amfry/robot_localization/blob/master/documentation/flow.png)
 
 
 ### Challenges
 ##### Too Much Convergence ?
-After distributing and resampling particles, the particle displayed in Rviz seemed to be get downsampled without us implementing that feature.  After confirming that our particle cloud was not changing in size while the filter was being run, we were stumped at what the problem could be. Ultimatley, at that point in our implemntation the particles were aggressivley converging and they were on top of one another.  By introducing random variance to particles during the resample phase, we were able to create a partilce cloud, then a few locations were all teh particles were on top of one another. We had not considered what successfully convergence might look like so we didn't indentify "downsampling" as anything other than a bug in the code.
+After distributing and resampling particles, the particles displayed in Rviz seemed to be get downsampled without us implementing that feature.  After confirming that our particle cloud was not changing in size while the filter was being run, we were stumped at what the problem could be. Ultimatley, at that point in our implemntation the particles were aggressivley converging and they were on top of one another.  By introducing random variance to particles during the resample phase, we were able to create a partilce cloud, then a few locations were all teh particles were on top of one another. We had not considered what successfully convergence might look like so we didn't indentify "downsampling" as anything other than a bug in the code.
 
 ##### Bag Files
 In mini-project 1, we had used bag files as a recording tool and were intailly confused how the bag file could be the basis of the particle filter simulation.  It took us a while to get into a solid workflow and understand the difference between the robot model on the map and traveling red arrow.  It was also intially disorienting to consider how things like the laser_scan topic could be subscribed to without a neato being simulated in Gazebo. This confusion delayed how quickly we were able to start iterating on code.
