@@ -26,7 +26,7 @@ class TFHelper(object):
             (Quaternion) tuples to a geometry_msgs/Pose message """
         return Pose(position=Point(x=translation[0],
                                    y=translation[1],
-                                   z=translation[2]),
+                                 z=translation[2]),
                     orientation=Quaternion(x=rotation[0],
                                            y=rotation[1],
                                            z=rotation[2],

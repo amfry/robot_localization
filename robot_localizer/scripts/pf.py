@@ -103,7 +103,7 @@ class ParticleFilter:
         self.weights = []
         self.normalized_weights = []
 
-        self.num_particles = 200
+        self.num_particles = 300
         self.sample_num = 4
 
         self.resample_threshold = 1 / self.num_particles
@@ -154,10 +154,19 @@ class ParticleFilter:
         """
         # first make sure that the particle weights are normalized
         # self.normalize_particles()
-
-        # TODO: assign the latest pose into self.robot_pose as a geometry_msgs.Pose object
+        x_avg = []
+        y_avg = []
+        t_avg = []
+        for p in self.particle_cloud:
+            x_avg.append(p.x)
+            y_avg.append(p.y)
+            t_avg.append(p.theta)
+        x_pos = ((sum(x_avg))/len(x_avg))
+        y_pos = ((sum(y_avg)) / len(y_avg))
+        t_pos = ((sum(t_avg)) / len(t_avg))
         # just to get started we will fix the robot's pose to always be at the origin
-        self.robot_pose = Pose()
+        orientation_tuple = tf.transformations.quaternion_from_euler(0,0,t_pos)
+        self.robot_pose = Pose(position=Point(x=x_pos, y = y_pos, z = 0), orientation=Quaternion(x=orientation_tuple[0], y=orientation_tuple[1], z=orientation_tuple[2], w=orientation_tuple[3]))
 
         self.transform_helper.fix_map_to_odom_transform(self.robot_pose, timestamp)
 
@@ -187,8 +196,8 @@ class ParticleFilter:
             self.current_odom_xy_theta = new_odom_xy_theta
             return
 
-        translated_vector = self.rotate_vector([self.current_odom_xy_theta[0], self.current_odom_xy_theta[1]], self.current_odom_xy_theta[2])
-        angle_difference = self.transform_helper.angle_diff(new_odom_xy_theta[2], self.current_odom_xy_theta[2])
+        translated_vector = self.rotate_vector([delta[0], delta[1]], self.current_odom_xy_theta[2])
+        angle_difference = self.transform_helper.angle_diff(self.current_odom_xy_theta[2], new_odom_xy_theta[2])
         for p in self.particle_cloud:
             p.x = p.x + translated_vector[0]
             p.y = p.y + translated_vector[1]
@@ -377,10 +386,12 @@ class ParticleFilter:
         proposed = self.draw_random_sample(self.particle_cloud, self.normalized_weights, self.num_particles)
         #vals_to_vary = random.sample(proposed, round(self.num_particles/5))
         for p in proposed:
-            vary_x = random.uniform(0,.5)
+            vary_x = random.uniform(-.25,.25)
             p.x = p.x + vary_x
-            vary_y = random.uniform(0, .5)
+            vary_y = random.uniform(-.25, .25)
             p.y = p.y + vary_y
+            vary_t = random.uniform(-1 * math.pi/6, math.pi/6)
+            p.theta = p.theta + vary_t
         self.particle_cloud = proposed
 
 
@@ -402,7 +413,7 @@ class ParticleFilter:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose.pose)
         self.particle_cloud = []
         for i in range(0,self.num_particles):
-            p = Particle(x=random.random()*10-5, y=random.random()*10-5, theta=np.random.choice(6))
+            p = Particle(x=random.random()*5, y=random.random()*8-4, theta=np.random.choice(6))
             self.particle_cloud.append(p)
         self.update_robot_pose(timestamp)
         fake_particle = Particle(x=4, y=0, theta=2.904)
@@ -464,6 +475,7 @@ class ParticleFilter:
         elif (math.fabs(new_odom_xy_theta[0] - self.current_odom_xy_theta[0]) > self.d_thresh or
               math.fabs(new_odom_xy_theta[1] - self.current_odom_xy_theta[1]) > self.d_thresh or
               math.fabs(new_odom_xy_theta[2] - self.current_odom_xy_theta[2]) > self.a_thresh):
+
             # we have moved far enough to do an update!
             self.update_particles_with_odom()    # update based on odometry
             if self.last_projected_stable_scan:
