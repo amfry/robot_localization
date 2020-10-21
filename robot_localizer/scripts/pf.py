@@ -374,7 +374,15 @@ class ParticleFilter:
             self.particle_cloud[i].w = self.normalized_weights[i]
 
     def resample_particles(self):
-        self.particle_cloud = self.draw_random_sample(self.particle_cloud, self.normalized_weights, self.num_particles)
+        proposed = self.draw_random_sample(self.particle_cloud, self.normalized_weights, self.num_particles)
+        #vals_to_vary = random.sample(proposed, round(self.num_particles/5))
+        for p in proposed:
+            vary_x = random.uniform(0,.5)
+            p.x = p.x + vary_x
+            vary_y = random.uniform(0, .5)
+            p.y = p.y + vary_y
+        self.particle_cloud = proposed
+
 
 #### normalize those weights
 
