@@ -103,7 +103,7 @@ class ParticleFilter:
         self.weights = []
         self.normalized_weights = []
 
-        self.num_particles = 5
+        self.num_particles = 500
         self.sample_num = 4
 
         self.resample_threshold = 1 / self.num_particles
@@ -383,7 +383,7 @@ class ParticleFilter:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose.pose)
         self.particle_cloud = []
         for i in range(0,self.num_particles):
-            p = Particle(x=random.random()*5-2.5, y=random.random()*5-2.5, theta=np.random.choice(6))
+            p = Particle(x=random.random()*10-5, y=random.random()*10-5, theta=np.random.choice(6))
             self.particle_cloud.append(p)
         self.update_robot_pose(timestamp)
         fake_particle = Particle(x=4, y=0, theta=2.904)
@@ -519,15 +519,15 @@ if __name__ == '__main__':
             counter += 1
             print("counter: " + str(counter))
             time.sleep(3)
-            n.initialize_particle_cloud(rospy.Time.now(), 10)
             if counter == 1:
                 # only generate the sample angles 1 time
+                n.initialize_particle_cloud(rospy.Time.now(), 10)
                 n.select_robo_scan_points(n.sample_num)
             n.draw_marker_array()
             # n.draw_scan_marker_array()
             # print("------")
             # print(n.normalized_weights)
-            # print(len(n.normalized_weights))
+            print("length of cloud: " + str(len(n.particle_cloud)))
             # print("SUM: " + str(sum(n.normalized_weights)))
             # print("------")
             #list to clear after each set of particles in generate
