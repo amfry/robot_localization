@@ -20,3 +20,4 @@ After we measure the distance between each point in the projected laser scan and
 ### Improvements
 
 ### Lessons Learned
+![Weights](https://github.com/amfry/robot_localization/blob/master/documentation/weights.png)
