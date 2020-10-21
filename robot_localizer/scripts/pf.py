@@ -103,7 +103,7 @@ class ParticleFilter:
         self.weights = []
         self.normalized_weights = []
 
-        self.num_particles = 500
+        self.num_particles = 200
         self.sample_num = 4
 
         self.resample_threshold = 1 / self.num_particles
@@ -179,58 +179,30 @@ class ParticleFilter:
             delta = (new_odom_xy_theta[0] - self.current_odom_xy_theta[0],
                      new_odom_xy_theta[1] - self.current_odom_xy_theta[1],
                      new_odom_xy_theta[2] - self.current_odom_xy_theta[2])
-
+            
             self.current_odom_xy_theta = new_odom_xy_theta
 
             #print("delta: " + str(delta))
         else:
             self.current_odom_xy_theta = new_odom_xy_theta
             return
-        alpha = math.atan(delta[1]/delta[0])  # angle of d[0] & d[1]
 
+        translated_vector = self.rotate_vector([self.current_odom_xy_theta[0], self.current_odom_xy_theta[1]], self.current_odom_xy_theta[2])
+        angle_difference = self.transform_helper.angle_diff(new_odom_xy_theta[2], self.current_odom_xy_theta[2])
         for p in self.particle_cloud:
-            beta = p.theta + alpha  # direction of delta vector in map frame
-            if 0 < beta < math.pi/2:
-                # Q1
-                print("Q1")
-                p.x = p.x + delta[0]
-                p.y = p.y + delta[1]
-                p.theta = p.theta + delta[2]
-            if math.pi/2 <= beta < math.pi:
-                # Q2
-                print("Q2")
-                p.x = p.x - delta[0]
-                p.y = p.y + delta[1]
-                p.theta = p.theta + delta[2]
-            if math.pi <= beta < (3*math.pi) / 2:
-                # Q3
-                print("Q3")
-                p.x = p.x - delta[0]
-                p.y = p.y - delta[1]
-                p.theta = p.theta + delta[2]
-            if (3 * math.pi) / 4 <= beta < 2 * math.pi:
-                # Q4
-                print("Q4")
-                p.x = p.x + delta[0]
-                p.y = p.y - delta[1]
-                p.theta = p.theta + delta[2]
+            p.x = p.x + translated_vector[0]
+            p.y = p.y + translated_vector[1]
+            p.theta = p.theta + angle_difference
 
-        # TODO: modify particles using delta
 
-    def map_calc_range(self,x,y,theta):
-        """ Difficulty Level 3: implement a ray tracing likelihood model... Let me know if you are interested """
-        # TODO: nothing unless you want to try this alternate likelihood model
-        pass
+    def rotate_vector(self, vec, angle):
+        """ Take the sin and cos of a vector
+            (We got help from Nina for this step))
+        """
+        c, s = math.cos(angle), math.sin(angle)
+        R = np.array(((c, -s), (s, c)))
 
-    # def resample_particles(self):
-    #     """ Resample the particles according to the new particle weights.
-    #         The weights stored with each particle should define the probability that a particular
-    #         particle is selected in the resampling step.  You may want to make use of the given helper
-    #         function draw_random_sample.
-    #     """
-    #     # make sure the distribution is normalized
-    #     self.normalize_particles()
-    #     # TODO: fill out the rest of the implementation
+        return R.dot(vec)
 
     def update_particles_with_laser(self, msg):
         """ Updates the particle weights in response to the scan contained in the msg """
@@ -309,14 +281,46 @@ class ParticleFilter:
         return marker
 
     def draw_scan_marker_array(self):
-        print("ELECTRIC BOOGALOOOOOO")
+        # print("ELECTRIC BOOGALOOOOOO")
         marker_array = MarkerArray()
         for i, s in enumerate(self.scan_coordinates_map):
             # print("i = " + str(i))
             m = self.get_scan_marker(s[0], s[1])
-            print(s[0], s[1])
+            # print(s[0], s[1])
             m.id = i
             marker_array.markers.append(m)
+        # print("w")
+        self.vis_pub.publish(marker_array)
+        return
+
+    def get_quadrant_marker(self, x, y, r, g, b):
+        marker = Marker()
+        marker.header.frame_id = "map"
+        marker.type = marker.SPHERE
+        marker.pose.position.x = x
+        marker.pose.position.y = y
+        marker.pose.position.z = 0
+        marker.scale.x = 0.2
+        marker.scale.y = 0.2
+        marker.scale.z = 0.2
+        marker.color.a = 1.0
+        marker.color.r = r
+        marker.color.g = g
+        marker.color.b = b
+        return marker
+
+    def draw_quadrant_marker_array(self):
+        # print("ELECTRIC BOOGALOOOOOO")
+        marker_array = MarkerArray()
+        Q1 = self.get_quadrant_marker(1, 1, 1.0, 0.0, 0.0)
+        Q1.id = 0
+        Q2 = self.get_quadrant_marker(-1, 1, 0.0, 1.0, 0.0)
+        Q2.id = 1
+        Q3 = self.get_quadrant_marker(-1, -1, 0.0, 0.0, 1.0)
+        Q3.id = 2
+        Q4 = self.get_quadrant_marker(1, -1, 0.5, 0.0, 0.5)
+        Q4.id = 3
+        marker_array = [Q1, Q2, Q3, Q4]
         # print("w")
         self.vis_pub.publish(marker_array)
         return
@@ -359,7 +363,14 @@ class ParticleFilter:
         self.assign_weights_to_particles()
 
     def assign_weights_to_particles(self):
+        # print("LEN PART CLOUD: " + str(len(self.particle_cloud)))
+        # print("LEN NORM WEIGHTS: " + str(len(self.normalized_weights)))
+
+        # if (len(self.normalized_weights) > 500):
+            # print(self.normalized_weights)
+        
         for i in range(len(self.particle_cloud)):
+            # print("i: " + str(i))
             self.particle_cloud[i].w = self.normalized_weights[i]
 
     def resample_particles(self):
@@ -453,19 +464,20 @@ class ParticleFilter:
                 self.scan_in_base_link = self.tf_listener.transformPointCloud("base_link", last_projected_scan_timeshift)
 
             #### resample section
-            n.select_robo_scan_distances()
-            n.scan_loc_from_particles()
-            n.get_dist_between_scan_point_and_map()
-            n.distance_to_bell_vals()
-            n.bell_vals_to_weights()
-            n.normalize_weights()
-            n.resample_particles()
-            n.reset_for_new_particles()
+            self.select_robo_scan_distances()
+            self.scan_loc_from_particles()
+            self.get_dist_between_scan_point_and_map()
+            self.distance_to_bell_vals()
+            self.bell_vals_to_weights()
+            self.normalize_weights()
+            self.resample_particles()
+            self.publish_particles()
+            self.reset_for_new_particles()
           # update based on laser scan
             self.update_robot_pose(msg.header.stamp)                # update robot's pose
             # self.resample_particles()               # resample particles to focus on areas of high density
         # publish particles (so things like rviz can see them)
-        self.publish_particles()
+        
 
 
     ##### visualize each particle w/ marker
@@ -523,7 +535,8 @@ if __name__ == '__main__':
                 # only generate the sample angles 1 time
                 n.initialize_particle_cloud(rospy.Time.now(), 10)
                 n.select_robo_scan_points(n.sample_num)
-            n.draw_marker_array()
+            # n.draw_marker_array()
+            n.draw_quadrant_marker_array()
             # n.draw_scan_marker_array()
             # print("------")
             # print(n.normalized_weights)
