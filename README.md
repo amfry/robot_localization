@@ -6,6 +6,8 @@ The goal of this project was to develop a particle filter algorithm for the purp
 
 ### Implementation
 
+![](robot_localizer/bags/convergence.gif)
+
 
 ### Design Decisons
 
