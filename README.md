@@ -2,7 +2,7 @@
 
 ### Implementation
 
-For the 2nd mini-project for Introduction to Computational Robotics, we designed a particle filter to solve a robot localization challenge. Given a map, our goal was to locate the robot using lidar, odometery, and preexisting map data. Our final implementation of the particle filter shows clear convergence and with further tuning of variance and particle distribution we belief the partilce filter could be improved.
+For the 2nd mini-project for Introduction to Computational Robotics, we designed a particle filter to solve a robot localization challenge. Given a map, our goal was to locate the robot using lidar, odometry, and preexisting map data. Our final implementation of the particle filter shows clear convergence, and with further tuning of variance and particle distribution we believe the particle filter could be improved.
 
 ![Converge](documentation/convergence.gif)
 
@@ -22,7 +22,7 @@ The robot pose is estimated by taking the average of all the xy positions and he
 
 ### Design Decisons
 ##### Flexible Particle and Laser Samples
-Our particle filter has parameters that allow us to consider how varying number of scan points and particles impacts the behavior of the filter.  This was a helpful tool in debugging to be able to qucikly switch between validating a particle's projected laser scan and how 4 laser scan points taken at even intervals impacted the convergence of the filter.
+Our particle filter has parameters that allow us to consider how varying number of scan points and particles impacts the behavior of the filter.  This was a helpful tool in debugging as it allowed us to quickly switch between validating a particle's projected laser scan and seeing how different numbers of laser scan points impacted the convergence of the filter.
 
 ##### Normal Disribution
 
@@ -42,7 +42,7 @@ After distributing and resampling particles, the particles displayed in Rviz see
 In mini-project 1, we had used bag files as a recording tool and were intailly confused how the bag file could be the basis of the particle filter simulation.  It took us a while to get into a solid workflow and understand the difference between the robot model on the map and traveling red arrow.  It was also intially disorienting to consider how things like the laser_scan topic could be subscribed to without a neato being simulated in Gazebo. This confusion delayed how quickly we were able to start iterating on code.
 
 ### Future Improvements
-Our filter could be improved by working to tightening the cloud of particles around the proposed robot position. This could be done by increase the weights of particles that have scan values that align with the robots.  Using normal distribution curves with a steeper cutoff would force more convergence.  To help tighten the cloud, we could also decrease the amount of varriance introduced during the resample step so the convergence is more apparent in the mean pose and in visualization.
+Our filter could be improved by working to tightening the cloud of particles around the proposed robot position. This could be done by further increasing the weights of particles that are most likely to be at the robot's position.  Using normal distribution curves with a steeper cutoff would force more convergence.  To help tighten the cloud, we could also decrease the amount of variance introduced during the resampling step so the convergence is more apparent in the mean pose and in visualization.
 
 To determine the coordinates and orientation of the predicted robot location, we are taking the mean of positions and angles for all of the particles within the particle cloud.  To increase the accuracy of the pose prediction, we could use standard deviation to select a value with a low standard deviation that is closer to the mean.
 
